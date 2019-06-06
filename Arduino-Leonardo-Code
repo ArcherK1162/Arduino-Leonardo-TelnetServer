@@ -69,10 +69,10 @@ void getReceivedText()
     charsReceived++;
     charsWaiting--;
   }
-  while(charsReceived <= textBuffSize && c != 0xA && charsWaiting > 0);
+  while(charsReceived <= textBuffSize && (c != 0xA || c != 0xD) && charsWaiting > 0);
   //if LF found go look at received text and execute command
 
-   if(c == 0xA) {
+   if(c == 0xA || c == 0xD) {
     parseReceivedText();
  
     // after completing command, print a new prompt
@@ -91,7 +91,8 @@ void parseReceivedText()
 
   if(textBuff[0] == 'c'){
     if(textBuff[1] == 'l'){
-      closeConnection();
+      if(textBuff[2] == 0xA || textBuff[2] == 0xD)
+        closeConnection();
     }
   }
 }
