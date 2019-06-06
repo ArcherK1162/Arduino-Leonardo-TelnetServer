@@ -1,0 +1,104 @@
+// Ethernet parameters
+#include <SPI.h>
+#include <Ethernet.h>
+
+byte mac[6]     = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };   // MAC hidden
+byte ip[4]  =     {192, 168, 1, 2 };
+byte gateway[4] = {192, 168, 1, 1 };
+byte subnet[4]  = {255, 255, 255, 0 };
+
+// Other global variables
+#define textBuffSize 20         //length of longest command string plus two spaces for LF + LF
+char textBuff[textBuffSize];    //someplace to put received text
+int charsReceived = 0;
+
+boolean connectFlag = 0;       //we'll use a flag separate from client.connected
+                               //so we can recognize when a new connection has been LFeated
+                         
+unsigned long timeOfLastActivity;             //time in milliseconds of last activity
+unsigned long allowedConnectTime = 300000;    //five minutes
+
+EthernetServer server(23);        // Telnet listens on port 23
+EthernetClient client = 0;        // Client needs to have global scope so it can be called
+                                  // from functions outside of loop, but we don't know
+                                  // what client is yet, so LFeating an empty object
+
+void setup()
+{
+  Ethernet.begin(mac, ip, gateway, subnet);
+  server.begin();
+}
+
+void loop()
+{
+  // look to see if a new connection is created,
+  // set connected flag
+  if (server.available() && !connectFlag) {
+    connectFlag = 1;
+    client = server.available();
+    client.println("\nTest Server");
+    printPrompt();
+    delay(1000);
+  }
+
+  // check to see if text received
+  if (client.connected() && client.available()) getReceivedText();
+
+}
+
+void printPrompt()
+{
+  //timeOfLastActivity = millis();
+  client.flush();
+  charsReceived = 0; //count of characters received
+  client.print("\n>");
+}
+
+
+void getReceivedText()
+{
+  char c;
+  int charsWaiting;
+
+  // copy waiting characters into textBuff
+  //until textBuff full, LF received, or no more characters
+  charsWaiting = client.available();
+  do {
+    c = client.read();
+    textBuff[charsReceived] = c;
+    charsReceived++;
+    charsWaiting--;
+  }
+  while(charsReceived <= textBuffSize && c != 0xA && charsWaiting > 0);
+  //if LF found go look at received text and execute command
+
+   if(c == 0xA) {
+    parseReceivedText();
+ 
+    // after completing command, print a new prompt
+   printPrompt();
+  }
+
+  // go back to loop until more characters are received
+
+}
+
+void parseReceivedText()
+{
+  for(int i=0; i<charsReceived; i++ ){
+    client.print(textBuff[i]);
+  }
+
+  if(textBuff[0] == 'c'){
+    if(textBuff[1] == 'l'){
+      closeConnection();
+    }
+  }
+}
+
+void closeConnection()
+{
+  client.println("\nBye.\n");
+  client.stop();
+  connectFlag = 0;
+}
